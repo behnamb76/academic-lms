@@ -1,0 +1,36 @@
+package ir.bahman.academic_lms.model;
+
+import ir.bahman.academic_lms.model.answer.TestAnswer;
+import ir.bahman.academic_lms.model.base.BaseEntity;
+import ir.bahman.academic_lms.model.question.TestQuestion;
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@SuperBuilder
+public class Option extends BaseEntity<Long> {
+    private String text;
+
+    private String correct;
+
+    @ManyToOne
+    @JoinColumn(name = "question_id")
+    private TestQuestion testQuestion;
+
+    @OneToMany(mappedBy = "option")
+    private List<TestAnswer> testAnswers = new ArrayList<>();
+}
