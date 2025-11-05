@@ -1,6 +1,7 @@
 package ir.bahman.academic_lms.model.question;
 
 import ir.bahman.academic_lms.model.Option;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
@@ -21,6 +22,6 @@ import java.util.List;
 @SuperBuilder
 @DiscriminatorValue("TEST")
 public class TestQuestion extends Question {
-    @OneToMany(mappedBy = "testQuestion")
+    @OneToMany(mappedBy = "testQuestion", cascade = CascadeType.ALL)
     private List<Option> options = new ArrayList<>();
 }

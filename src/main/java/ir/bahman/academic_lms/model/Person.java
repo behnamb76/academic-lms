@@ -28,7 +28,7 @@ public class Person extends BaseEntity<Long> {
     @Column(unique = true)
     private String phoneNumber;
 
-    @OneToOne(mappedBy = "person")
+    @OneToOne(mappedBy = "person", cascade = CascadeType.ALL)
     private Account account;
 
     @OneToMany(mappedBy = "person")
@@ -37,10 +37,18 @@ public class Person extends BaseEntity<Long> {
     @ManyToOne
     private Major major;
 
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "person_roles",
+            joinColumns = @JoinColumn(name = "person_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private List<Role> roles = new ArrayList<>();
+
     @ManyToMany
     @JoinTable(
             name = "person_offered_courses",
-            joinColumns = @JoinColumn(name = "person_id"),
+            joinColumns = @JoinColumn(name = "student_id"),
             inverseJoinColumns = @JoinColumn(name = "offered_course_id")
     )
     private List<OfferedCourse> offeredCourses = new ArrayList<>();

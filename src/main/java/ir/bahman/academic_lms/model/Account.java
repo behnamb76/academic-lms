@@ -35,14 +35,6 @@ public class Account extends BaseEntity<Long> {
     @JoinColumn(name = "person_id")
     private Person person;
 
-    @ManyToMany
-    @JoinTable(
-            name = "account_roles",
-            joinColumns = @JoinColumn(name = "account_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private List<Role> roles = new ArrayList<>();
-
     @ManyToOne
     @JoinColumn(name = "active_role_id")
     private Role activeRole;

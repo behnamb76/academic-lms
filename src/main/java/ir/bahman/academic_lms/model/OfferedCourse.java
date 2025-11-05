@@ -39,7 +39,7 @@ public class OfferedCourse extends BaseEntity<Long> {
     private Term term;
 
     @ManyToOne
-    @JoinColumn(name = "person_id")
+    @JoinColumn(name = "teacher_id")
     private Person teacher;
 
     @ManyToMany(mappedBy = "offeredCourses")

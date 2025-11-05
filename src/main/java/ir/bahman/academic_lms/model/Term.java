@@ -19,6 +19,7 @@ import java.util.List;
 @AllArgsConstructor
 @SuperBuilder
 public class Term extends BaseEntity<Long> {
+    @Column(name = "term-year")
     private Integer year;
 
     @Enumerated(EnumType.STRING)

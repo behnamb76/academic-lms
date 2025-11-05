@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import java.io.Serializable;
 import java.util.List;
 
-@Service
 public interface BaseService<T extends BaseEntity<ID>, ID extends Serializable> {
     T persist(T t);
     T update(ID id, T t);

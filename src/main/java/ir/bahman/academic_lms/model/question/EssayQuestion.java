@@ -12,7 +12,6 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 @SuperBuilder
 @DiscriminatorValue("ESSAY")
 public class EssayQuestion extends Question {
