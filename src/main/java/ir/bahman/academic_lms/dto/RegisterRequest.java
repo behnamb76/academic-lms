@@ -36,7 +36,7 @@ public class RegisterRequest {
     @Pattern(regexp = "^[a-zA-Z0-9_]{3,20}$", message = "Invalid username format")
     private String username;
 
-    @NotBlank(message = "Password is required")
+    @NotBlank(message = "Password is required!")
     @Pattern.List({
             @Pattern(regexp = ".{8,}", message = "Password must be at least 8 characters"),
             @Pattern(regexp = ".*[0-9].*", message = "Password must contain a digit"),

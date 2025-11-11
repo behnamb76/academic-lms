@@ -18,6 +18,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,17 +61,6 @@ public class PersonServiceImpl extends BaseServiceImpl<Person, Long> implements 
     protected void postPersist(Person person) {
         Role role = roleRepository.findByName("USER")
                 .orElseThrow(() -> new EntityNotFoundException("Role not found!"));
-
-        /*Account account = Account.builder()
-                .username(person.getNationalCode())
-                .password(passwordEncoder.encode(person.getPhoneNumber()))
-                .status(AccountStatus.PENDING)
-                .person(person)
-                .activeRole(role)
-                .build();
-
-        person.setAccount(account);
-        accountRepository.save(account);*/
 
         Account account = person.getAccount();
 
@@ -132,17 +122,15 @@ public class PersonServiceImpl extends BaseServiceImpl<Person, Long> implements 
     }
 
     @Override
-    public void changeRole(String username, String roleName) {
-        Account account = accountRepository.findByUsername(username)
-                .orElseThrow(() -> new EntityNotFoundException("Account not found!"));
+    public List<Person> search(String keyword) {
+        return personRepository.searchByKeyword(keyword);
+    }
 
-        Role role = roleRepository.findByName(roleName.toUpperCase())
-                .orElseThrow(() -> new EntityNotFoundException("Role not found!"));
-
-        if (account.getPerson().getRoles().contains(role)) {
-            account.setActiveRole(role);
-            accountRepository.save(account);
-        } else
-            throw new AccessDeniedException("Role is not assigned to this person!");
+    @Override
+    public List<Role> getPersonRoles(Principal principal) {
+        String username = principal.getName();
+        Person person= personRepository.findByAccountUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("Person not found"));
+        return person.getRoles();
     }
 }

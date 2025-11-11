@@ -2,6 +2,7 @@ package ir.bahman.academic_lms.service.impl;
 
 import ir.bahman.academic_lms.model.base.BaseEntity;
 import ir.bahman.academic_lms.service.BaseService;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.io.Serializable;
@@ -18,6 +19,7 @@ public abstract class BaseServiceImpl<T extends BaseEntity<ID>, ID extends Seria
     public T persist(T t) {
         prePersist(t);
         T saved = repository.save(t);
+        BeanUtils.copyProperties(t , saved );
         postPersist(saved);
         return saved;
     }

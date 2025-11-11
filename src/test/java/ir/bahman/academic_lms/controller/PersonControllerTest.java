@@ -2,7 +2,7 @@ package ir.bahman.academic_lms.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ir.bahman.academic_lms.dto.AssignRoleRequest;
-import ir.bahman.academic_lms.dto.ChangeRoleRequest;
+import ir.bahman.academic_lms.dto.LoginRequest;
 import ir.bahman.academic_lms.dto.PersonDTO;
 import ir.bahman.academic_lms.dto.RegisterRequest;
 import ir.bahman.academic_lms.model.Account;
@@ -12,7 +12,6 @@ import ir.bahman.academic_lms.repository.AccountRepository;
 import ir.bahman.academic_lms.repository.MajorRepository;
 import ir.bahman.academic_lms.repository.PersonRepository;
 import ir.bahman.academic_lms.repository.RoleRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,12 +22,15 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -69,7 +71,7 @@ class PersonControllerTest {
     @Test
     void testTeacherRegister() throws Exception {
 
-        RegisterRequest request = createRegisterRequest();
+        RegisterRequest request = registerPerson();
 
         String response = mockMvc.perform(post("/api/person/teacher-register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -100,7 +102,7 @@ class PersonControllerTest {
 
     @Test
     void testTeacherRegister_shouldRejectDuplicate() throws Exception {
-        RegisterRequest firstRequest = createRegisterRequest();
+        RegisterRequest firstRequest = registerPerson();
 
         mockMvc.perform(post("/api/person/teacher-register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -125,7 +127,7 @@ class PersonControllerTest {
 
     @Test
     void testAssignRoleToPerson() throws Exception {
-        RegisterRequest request = createRegisterRequest();
+        RegisterRequest request = registerPerson();
 
         String registerResponse = mockMvc.perform(post("/api/person/teacher-register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -156,7 +158,7 @@ class PersonControllerTest {
 
     @Test
     void testUpdateProfile() throws Exception {
-        RegisterRequest request = createRegisterRequest();
+        RegisterRequest request = registerPerson();
 
         mockMvc.perform(post("/api/person/teacher-register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -202,38 +204,52 @@ class PersonControllerTest {
     }
 
     @Test
-    void testChangeRole() throws Exception {
-        RegisterRequest request = createRegisterRequest();
+    void testSearchPeople() throws Exception {
+        String token = loginAndGetToken();
 
-        Role adminRole = roleRepository.findByName("TEACHER")
-                .orElseThrow(() -> new EntityNotFoundException("Role not found!"));
+        RegisterRequest request = registerPerson();
 
         mockMvc.perform(post("/api/person/teacher-register")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
 
-        Person person = personRepository.findByNationalCode("1234567890")
-                .orElseThrow();
-        person.getRoles().add(adminRole);
-        personRepository.save(person);
+        RegisterRequest request1 = RegisterRequest.builder()
+                .firstName("Sara")
+                .lastName("Ahmadi")
+                .nationalCode("2234567890")
+                .phoneNumber("09223456789")
+                .majorName("Computer")
+                .username("sara_a")
+                .password("mySecretPass123").build();
 
-        Account accountBefore = accountRepository.findByUsername("ali_teacher").orElseThrow();
-        assertThat(accountBefore.getActiveRole().getName()).isEqualTo("USER");
-
-        ChangeRoleRequest changeRequest = ChangeRoleRequest.builder()
-                .role("TEACHER").build();
-
-        mockMvc.perform(put("/api/person/change-role")
+        mockMvc.perform(post("/api/person/teacher-register")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(changeRequest)))
-                .andExpect(status().isOk());
+                        .content(objectMapper.writeValueAsString(request1)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
 
-        Account accountAfter = accountRepository.findByUsername("ali_teacher").orElseThrow();
-        assertThat(accountAfter.getActiveRole().getName()).isEqualTo("TEACHER");
+        String response = mockMvc.perform(get("/api/person/search/Ali")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        List<PersonDTO> results = objectMapper.readValue(response,
+                objectMapper.getTypeFactory().constructCollectionType(List.class, PersonDTO.class));
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getFirstName()).isEqualTo("Ali");
+
+        mockMvc.perform(get("/api/person/search/sara_a")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].firstName").value("Sara"));
     }
 
-    private RegisterRequest createRegisterRequest(){
+    private RegisterRequest registerPerson(){
         return RegisterRequest.builder()
                 .firstName("Ali")
                 .lastName("Kazemi")
@@ -242,5 +258,19 @@ class PersonControllerTest {
                 .majorName("Computer")
                 .username("ali_teacher")
                 .password("mySecretPass123").build();
+    }
+
+    private String loginAndGetToken() throws Exception {
+        LoginRequest loginReq = LoginRequest.builder()
+                .username("admin")
+                .password("admin").build();
+
+        MvcResult login = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginReq)))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(login.getResponse().getContentAsString())
+                .get("accessToken").asText();
     }
 }

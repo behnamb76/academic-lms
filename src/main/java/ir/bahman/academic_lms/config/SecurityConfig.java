@@ -1,5 +1,10 @@
 package ir.bahman.academic_lms.config;
 
+import ir.bahman.academic_lms.filter.JwtAuthenticationFilter;
+import ir.bahman.academic_lms.repository.AccountRepository;
+import ir.bahman.academic_lms.service.JwtService;
+import ir.bahman.academic_lms.util.KeyUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,20 +17,35 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.nio.file.Paths;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+    private final JwtService jwtService;
+    private final CustomUserDetailsService userDetailsService;
+    private final AccountRepository accountRepository;
+
+    public SecurityConfig(JwtService jwtService, CustomUserDetailsService userDetailsService, AccountRepository accountRepository) {
+        this.jwtService = jwtService;
+        this.userDetailsService = userDetailsService;
+        this.accountRepository = accountRepository;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtService, userDetailsService, accountRepository);
+
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/**",
                                 "/api/auth/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
@@ -35,6 +55,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );
