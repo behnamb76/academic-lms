@@ -33,4 +33,6 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
     List<Person> searchByKeyword(@Param("keyword") String keyword);
 
     Optional<Person> findByAccountUsername(String username);
+
+    boolean existsByIdAndOfferedCourses_Id(Long id, Long offeredCourseId);
 }

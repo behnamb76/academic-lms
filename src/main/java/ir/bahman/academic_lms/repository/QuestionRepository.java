@@ -4,6 +4,11 @@ import ir.bahman.academic_lms.model.question.Question;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, Long> {
+    List<Question> findByExamQuestions_Exam_Id(Long examId);
+
+    List<Question> findByCourse_Id(Long courseId);
 }

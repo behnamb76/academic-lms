@@ -2,15 +2,14 @@ package ir.bahman.academic_lms.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ir.bahman.academic_lms.dto.LoginRequest;
+import ir.bahman.academic_lms.dto.LogoutRequest;
 import ir.bahman.academic_lms.dto.RefreshRequest;
 import ir.bahman.academic_lms.dto.RegisterRequest;
 import ir.bahman.academic_lms.model.Account;
 import ir.bahman.academic_lms.model.Person;
 import ir.bahman.academic_lms.model.enums.AccountStatus;
 import ir.bahman.academic_lms.repository.AccountRepository;
-import ir.bahman.academic_lms.repository.MajorRepository;
 import ir.bahman.academic_lms.repository.PersonRepository;
-import ir.bahman.academic_lms.repository.RoleRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,12 +20,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -45,11 +45,7 @@ class AuthControllerTest {
     @Autowired
     private AccountRepository accountRepository;
 
-    @Autowired
-    private RoleRepository roleRepository;
-
-    @Autowired
-    private MajorRepository majorRepository;
+    private String token;
 
     @BeforeEach
     void setUp() {
@@ -106,11 +102,34 @@ class AuthControllerTest {
     }
 
     @Test
-    void refresh() {
-    }
+    void testLogout() throws Exception {
+        LoginRequest loginReq = LoginRequest.builder()
+                .username("admin")
+                .password("admin").build();
 
-    @Test
-    void logout() {
+        String loginResponse = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginReq)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> tokens = objectMapper.readValue(loginResponse, Map.class);
+        String refreshToken = tokens.get("refreshToken");
+
+        LogoutRequest request = LogoutRequest.builder()
+                .refreshToken(refreshToken).build();
+
+        String response = mockMvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("User admin logged out successfully"))
+                .andReturn().getResponse().getContentAsString();
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> responseMap = objectMapper.readValue(response, Map.class);
+        assertThat(responseMap).containsEntry("message", "User admin logged out successfully");
     }
 
     private void createRegisterRequest() throws Exception {
@@ -123,10 +142,27 @@ class AuthControllerTest {
                 .username("ali_teacher")
                 .password("mySecretPass123").build();
 
+        String token = loginAndGetToken();
+
         mockMvc.perform(post("/api/person/teacher-register")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
+    }
+
+    private String loginAndGetToken() throws Exception {
+        LoginRequest loginReq = LoginRequest.builder()
+                .username("admin")
+                .password("admin").build();
+
+        MvcResult login = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginReq)))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(login.getResponse().getContentAsString())
+                .get("accessToken").asText();
     }
 }

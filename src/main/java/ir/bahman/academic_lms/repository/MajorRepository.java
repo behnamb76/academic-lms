@@ -15,4 +15,6 @@ public interface MajorRepository extends JpaRepository<Major, Long> {
     List<Major> findByDeletedIsFalse();
 
     Optional<Major> findByDeletedIsFalseAndId(Long id);
+
+    Optional<Major> findByNameAndDeletedIsFalse(String name);
 }

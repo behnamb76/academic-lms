@@ -68,9 +68,14 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String authId = jwtService.extractAuthId(refreshToken);
+        Account account = accountRepository.findByAuthId(UUID.fromString(authId))
+                .orElseThrow(() -> new EntityNotFoundException("Account not found"));
+        UUID uuid = UUID.randomUUID();
+        account.setAuthId(uuid);
+        accountRepository.save(account);
 
-        String newAccess = jwtService.generateAccessToken(UUID.fromString(authId));
-        String newRefresh = jwtService.generateRefreshToken(UUID.fromString(authId));
+        String newAccess = jwtService.generateAccessToken(uuid);
+        String newRefresh = jwtService.generateRefreshToken(uuid);
 
         return Map.of(
                 "accessToken", newAccess,
@@ -84,6 +89,8 @@ public class AuthServiceImpl implements AuthService {
             String authId = jwtService.extractAuthId(refreshToken);
             Account account = accountRepository.findByAuthId(UUID.fromString(authId))
                     .orElseThrow(() -> new EntityNotFoundException("Account not found"));
+            account.setAuthId(null);
+            accountRepository.save(account);
             return Map.of("message", "User " + account.getUsername() + " logged out successfully");
         }
         return Map.of("message", "Logged out");

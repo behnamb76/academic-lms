@@ -26,7 +26,7 @@ public class ExamInstance extends BaseEntity<Long> {
     private LocalDateTime endAt;
 
     @Enumerated(EnumType.STRING)
-    private ExamInstanceStatus examInstanceStatus;
+    private ExamInstanceStatus status;
 
     private Double totalScore;
 

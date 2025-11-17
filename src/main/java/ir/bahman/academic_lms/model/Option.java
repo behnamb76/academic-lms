@@ -3,10 +3,7 @@ package ir.bahman.academic_lms.model;
 import ir.bahman.academic_lms.model.answer.TestAnswer;
 import ir.bahman.academic_lms.model.base.BaseEntity;
 import ir.bahman.academic_lms.model.question.TestQuestion;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,9 +20,11 @@ import java.util.List;
 @AllArgsConstructor
 @SuperBuilder
 public class Option extends BaseEntity<Long> {
+    @Column(nullable = false)
     private String text;
 
-    private String correct;
+    @Column(nullable = false)
+    private boolean correct;
 
     @ManyToOne
     @JoinColumn(name = "question_id")

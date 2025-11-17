@@ -9,9 +9,8 @@ import ir.bahman.academic_lms.model.Account;
 import ir.bahman.academic_lms.model.Person;
 import ir.bahman.academic_lms.model.Role;
 import ir.bahman.academic_lms.repository.AccountRepository;
-import ir.bahman.academic_lms.repository.MajorRepository;
 import ir.bahman.academic_lms.repository.PersonRepository;
-import ir.bahman.academic_lms.repository.RoleRepository;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +19,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -27,7 +27,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -48,16 +47,12 @@ class PersonControllerTest {
     private PersonRepository personRepository;
 
     @Autowired
-    private MajorRepository majorRepository;
-
-    @Autowired
-    private RoleRepository roleRepository;
-
-    @Autowired
     private AccountRepository accountRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    private String token;
 
     @BeforeEach
     void setUp() {
@@ -65,7 +60,83 @@ class PersonControllerTest {
 
     @AfterEach
     void tearDown() {
-        personRepository.deleteAll();
+        personRepository.findAll().stream()
+                .filter(person -> !person.getId().equals(1L))
+                .forEach(person -> personRepository.deleteById(person.getId()));
+        accountRepository.findAll().stream()
+                .filter(account -> !account.getId().equals(1L))
+                .forEach(account -> personRepository.deleteById(account.getId()));
+    }
+
+    @Test
+    void testStudentRegister() throws Exception {
+
+        RegisterRequest request = RegisterRequest.builder()
+                .firstName("Ali")
+                .lastName("Ahmadi")
+                .nationalCode("2234567890")
+                .phoneNumber("09223456789")
+                .majorName("Computer")
+                .username("ali_student")
+                .password("mySecretPass123").build();
+
+        String response = mockMvc.perform(post("/api/person/student-register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.firstName").value("Ali"))
+                .andExpect(jsonPath("$.nationalCode").value("2234567890"))
+                .andReturn().getResponse().getContentAsString();
+
+        PersonDTO responseDto = objectMapper.readValue(response, PersonDTO.class);
+
+        Person savedPerson = personRepository.findByNationalCode((responseDto.getNationalCode())).orElseThrow();
+        assertThat(savedPerson.getNationalCode()).isEqualTo("2234567890");
+        assertThat(savedPerson.getPhoneNumber()).isEqualTo("09223456789");
+
+        Account savedAccount = savedPerson.getAccount();
+        assertThat(savedAccount).isNotNull();
+        assertThat(savedAccount.getUsername()).isEqualTo("ali_student");
+        assertThat(passwordEncoder.matches("mySecretPass123", savedAccount.getPassword())).isTrue();
+        assertThat(savedAccount.getStatus().name()).isEqualTo("PENDING");
+
+        List<String> roleNames = savedPerson.getRoles().stream()
+                .map(Role::getName)
+                .toList();
+
+        assertThat(roleNames).containsExactlyInAnyOrder("USER", "STUDENT");
+    }
+
+    @Test
+    void testStudentRegister_shouldRejectDuplicate() throws Exception {
+        RegisterRequest firstRequest = RegisterRequest.builder()
+                .firstName("Ali")
+                .lastName("Ahmadi")
+                .nationalCode("2234567890")
+                .phoneNumber("09223456789")
+                .majorName("Computer")
+                .username("ali_student")
+                .password("mySecretPass123").build();
+
+        mockMvc.perform(post("/api/person/student-register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(firstRequest)))
+                .andExpect(status().isCreated());
+
+        RegisterRequest secondRequest = RegisterRequest.builder()
+                .firstName("Ali")
+                .lastName("Ahmadi")
+                .nationalCode("2234567890")
+                .phoneNumber("09223456789")
+                .majorName("Computer")
+                .username("ali_student")
+                .password("mySecretPass123").build();
+
+        mockMvc.perform(post("/api/person/student-register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(secondRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("This person already exists!"));
     }
 
     @Test
@@ -73,7 +144,10 @@ class PersonControllerTest {
 
         RegisterRequest request = registerPerson();
 
+        token = loginAndGetToken();
+
         String response = mockMvc.perform(post("/api/person/teacher-register")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -104,7 +178,10 @@ class PersonControllerTest {
     void testTeacherRegister_shouldRejectDuplicate() throws Exception {
         RegisterRequest firstRequest = registerPerson();
 
+        token = loginAndGetToken();
+
         mockMvc.perform(post("/api/person/teacher-register")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(firstRequest)))
                 .andExpect(status().isCreated());
@@ -119,6 +196,7 @@ class PersonControllerTest {
                 .password("mySecretPass123").build();
 
         mockMvc.perform(post("/api/person/teacher-register")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(secondRequest)))
                 .andExpect(status().isBadRequest())
@@ -129,7 +207,10 @@ class PersonControllerTest {
     void testAssignRoleToPerson() throws Exception {
         RegisterRequest request = registerPerson();
 
+        token = loginAndGetToken();
+
         String registerResponse = mockMvc.perform(post("/api/person/teacher-register")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -144,6 +225,7 @@ class PersonControllerTest {
                 .personId(person.getId()).build();
 
         mockMvc.perform(post("/api/person/add-role")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(assignRequest)))
                 .andExpect(status().isOk());
@@ -160,7 +242,10 @@ class PersonControllerTest {
     void testUpdateProfile() throws Exception {
         RegisterRequest request = registerPerson();
 
+        token = loginAndGetToken();
+
         mockMvc.perform(post("/api/person/teacher-register")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -176,6 +261,7 @@ class PersonControllerTest {
                 .majorName("Computer").build();
 
         mockMvc.perform(put("/api/person/" + originalPerson.getId())
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateDto)))
                 .andExpect(status().isOk());
@@ -189,6 +275,8 @@ class PersonControllerTest {
 
     @Test
     void testUpdateProfile_shouldReturn404() throws Exception {
+        token = loginAndGetToken();
+
         PersonDTO dto = PersonDTO.builder()
                 .firstName("Test")
                 .lastName("User")
@@ -197,6 +285,7 @@ class PersonControllerTest {
                 .majorName("Computer").build();
 
         mockMvc.perform(put("/api/person/999999")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isNotFound())

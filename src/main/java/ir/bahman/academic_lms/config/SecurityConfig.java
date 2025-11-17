@@ -3,8 +3,6 @@ package ir.bahman.academic_lms.config;
 import ir.bahman.academic_lms.filter.JwtAuthenticationFilter;
 import ir.bahman.academic_lms.repository.AccountRepository;
 import ir.bahman.academic_lms.service.JwtService;
-import ir.bahman.academic_lms.util.KeyUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,10 +16,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import java.nio.file.Paths;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 
 @Configuration
 @EnableWebSecurity
@@ -47,6 +41,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/person/student-register",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",

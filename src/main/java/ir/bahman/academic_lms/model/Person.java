@@ -45,7 +45,7 @@ public class Person extends BaseEntity<Long> {
     )
     private List<Role> roles = new ArrayList<>();
 
-    @ManyToMany
+    @ManyToMany(cascade = CascadeType.ALL)
     @JoinTable(
             name = "person_offered_courses",
             joinColumns = @JoinColumn(name = "student_id"),

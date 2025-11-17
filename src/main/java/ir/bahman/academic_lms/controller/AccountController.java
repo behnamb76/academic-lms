@@ -5,6 +5,7 @@ import ir.bahman.academic_lms.dto.ChangeRoleRequest;
 import ir.bahman.academic_lms.service.AccountService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -18,24 +19,28 @@ public class AccountController {
         this.accountService = accountService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/activate/{id}")
     public ResponseEntity<Void> activateAccount(@PathVariable Long id) {
         accountService.activateAccount(id);
         return ResponseEntity.ok().build();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/deactivate/{id}")
     public ResponseEntity<Void> deactivateAccount(@PathVariable Long id) {
         accountService.deactivateAccount(id);
         return ResponseEntity.ok().build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STUDENT','TEACHER','USER')")
     @PutMapping("/change-role")
     public ResponseEntity<Void> changeRole(@Valid @RequestBody ChangeRoleRequest request, Principal principal) {
         accountService.changeRole(principal.getName(), request.getRole());
         return ResponseEntity.ok().build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STUDENT','TEACHER','USER')")
     @PutMapping("/change-password")
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request, Principal principal) {
         accountService.changePassword(request, principal.getName());

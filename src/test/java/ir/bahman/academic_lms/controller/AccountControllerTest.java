@@ -1,9 +1,9 @@
 package ir.bahman.academic_lms.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ir.bahman.academic_lms.dto.ChangePasswordRequest;
 import ir.bahman.academic_lms.dto.ChangeRoleRequest;
+import ir.bahman.academic_lms.dto.LoginRequest;
 import ir.bahman.academic_lms.dto.RegisterRequest;
 import ir.bahman.academic_lms.model.Account;
 import ir.bahman.academic_lms.model.Person;
@@ -13,6 +13,7 @@ import ir.bahman.academic_lms.repository.AccountRepository;
 import ir.bahman.academic_lms.repository.PersonRepository;
 import ir.bahman.academic_lms.repository.RoleRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,11 +22,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -35,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Transactional
 class AccountControllerTest {
     @Autowired
     private MockMvc mockMvc;
@@ -54,18 +57,22 @@ class AccountControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    private String token;
+
     @BeforeEach
     void setUp() {
     }
 
     @AfterEach
     void tearDown() {
-        personRepository.deleteAll();
+
     }
 
     @Test
     void testActivateAccount() throws Exception {
         createRegisterRequest();
+
+        token = loginAndGetToken();
 
         Person person = personRepository.findByNationalCode("1234567890")
                 .orElseThrow();
@@ -75,6 +82,7 @@ class AccountControllerTest {
         assertThat(accountBefore.getStatus()).isEqualTo(AccountStatus.PENDING);
 
         mockMvc.perform(put("/api/account/activate/" + accountId)
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
 
@@ -84,7 +92,10 @@ class AccountControllerTest {
 
     @Test
     void testActivateAccount_shouldReturn404() throws Exception {
+        token = loginAndGetToken();
+
         mockMvc.perform(put("/api/account/activate/999999")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
@@ -98,6 +109,7 @@ class AccountControllerTest {
         Long accountId = person.getAccount().getId();
 
         mockMvc.perform(put("/api/account/deactivate/" + accountId)
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
 
@@ -107,7 +119,10 @@ class AccountControllerTest {
 
     @Test
     void testDeactivateAccount_shouldReturn404() throws Exception {
+        token = loginAndGetToken();
+
         mockMvc.perform(put("/api/account/deactivate/999999")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
@@ -202,10 +217,27 @@ class AccountControllerTest {
                 .username("ali_teacher")
                 .password("mySecretPass123").build();
 
+        token = loginAndGetToken();
+
         mockMvc.perform(post("/api/person/teacher-register")
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
+    }
+
+    private String loginAndGetToken() throws Exception {
+        LoginRequest loginReq = LoginRequest.builder()
+                .username("admin")
+                .password("admin").build();
+
+        MvcResult login = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginReq)))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(login.getResponse().getContentAsString())
+                .get("accessToken").asText();
     }
 }

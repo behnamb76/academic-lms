@@ -29,6 +29,13 @@ public class PersonController {
         this.personMapper = personMapper;
     }
 
+    @PostMapping("/student-register")
+    public ResponseEntity<PersonDTO> studentRegister(@Valid @RequestBody RegisterRequest request) {
+        Person person = personService.register(request);
+        personService.assignRoleToPerson("student" , person.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(personMapper.toDto(person));
+    }
+
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @PostMapping("/teacher-register")
     public ResponseEntity<PersonDTO> teacherRegister(@Valid @RequestBody RegisterRequest request) {

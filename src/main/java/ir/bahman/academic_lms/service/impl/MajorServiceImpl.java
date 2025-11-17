@@ -30,14 +30,6 @@ public class MajorServiceImpl extends BaseServiceImpl<Major,Long> implements Maj
     }
 
     @Override
-    public void deleteById(Long id) {
-        Major major = majorRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Major not found"));
-        major.setDeleted(true);
-        majorRepository.save(major);
-    }
-
-    @Override
     public List<Major> findAll() {
         return majorRepository.findByDeletedIsFalse();
     }

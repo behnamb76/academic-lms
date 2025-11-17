@@ -20,11 +20,11 @@ import java.util.List;
 @AllArgsConstructor
 @SuperBuilder
 public class OfferedCourse extends BaseEntity<Long> {
-    private List<DayOfWeek> meetingDays = new ArrayList<>();
+    private DayOfWeek meetingDay;
 
-    private LocalTime startDate;
+    private LocalTime startTime;
 
-    private LocalTime endDate;
+    private LocalTime endTime;
 
     private Integer capacity;
 
@@ -42,7 +42,7 @@ public class OfferedCourse extends BaseEntity<Long> {
     @JoinColumn(name = "teacher_id")
     private Person teacher;
 
-    @ManyToMany(mappedBy = "offeredCourses")
+    @ManyToMany(mappedBy = "offeredCourses", cascade = CascadeType.ALL)
     private List<Person> students = new ArrayList<>();
 
     @OneToMany(mappedBy = "offeredCourse")
